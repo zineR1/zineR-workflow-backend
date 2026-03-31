@@ -1,0 +1,101 @@
+@PROJECT_ID = 201f84ca-549e-4c53-8912-7425bc3da467
+@TASK_ID = bb28ed62-6d67-4682-a41e-11f0cdc8c5d6
+@EXECUTION_ID = ff7352d8-a71f-4f06-b8e3-f228ebc6407b
+@STEP_ID = ffe87e2c-5044-404b-9176-6b0b1c0db7af
+
+### 1. Crear Project
+POST http://localhost:3000/projects
+Content-Type: application/json
+
+{
+  "name": "zineR",
+  "context": "Sistema de orquestación de agentes",
+  "projectImageUrl": "https://ziner.app/logo.png"
+}
+
+###
+
+### 2. Crear Task
+POST http://localhost:3000/tasks
+Content-Type: application/json
+
+{
+  "title": "Implementar drag and drop",
+  "description": "Permitir mover tarjetas entre columnas",
+  "projectId": "{{PROJECT_ID}}",
+  "type": "frontend",
+  "source": "internal"
+}
+
+###
+
+### 3. Ejecutar Task (crear execution)
+POST http://localhost:3000/executions/run
+Content-Type: application/json
+
+{
+  "taskId": "{{TASK_ID}}",
+  "agentType": "dev"
+}
+
+###
+
+### 4. Agregar Step
+POST http://localhost:3000/executions/{{EXECUTION_ID}}/step
+Content-Type: application/json
+
+{
+  "title": "Analizando código existente"
+}
+
+###
+
+### 5. Completar Step
+PATCH http://localhost:3000/executions/{{EXECUTION_ID}}/step/{{STEP_ID}}
+Content-Type: application/json
+
+{
+  "status": "completed",
+  "message": "Análisis finalizado"
+}
+
+###
+
+### 6. Bloquear execution
+POST http://localhost:3000/executions/{{EXECUTION_ID}}/block
+
+###
+
+### 7. Completar execution
+POST http://localhost:3000/executions/{{EXECUTION_ID}}/complete
+
+###
+
+### 8. Cancelar execution
+POST http://localhost:3000/executions/{{EXECUTION_ID}}/cancel
+
+###
+
+### 9. Crear nueva execution (para probar flujo limpio)
+POST http://localhost:3000/executions/run
+Content-Type: application/json
+
+{
+  "taskId": "{{TASK_ID}}",
+  "agentType": "dev"
+}
+
+###
+
+### 10. Traer todos los projects
+GET http://localhost:3000/projects
+
+###
+
+### 11. Traer todas las tasks
+GET http://localhost:3000/tasks
+
+###
+
+### 12. Ver executions de una task
+GET http://localhost:3000/executions/task/{{TASK_ID}}
