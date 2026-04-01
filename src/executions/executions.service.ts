@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { Execution } from '../common/interfaces/execution.interface';
 import { Step } from '../common/interfaces/step.interface';
@@ -8,7 +8,9 @@ import { TasksService } from '../tasks/tasks.service';
 export class ExecutionsService {
   private executions: Execution[] = [];
 
-  constructor(private readonly tasksService: TasksService) {}
+  constructor(
+    @Inject(forwardRef(() => TasksService)) private readonly tasksService: TasksService,
+  ) {}
 
   createExecution(taskId: string, agentType: Execution['agentType']): Execution {
     const task = this.tasksService.findById(taskId);
@@ -16,13 +18,20 @@ export class ExecutionsService {
       throw new NotFoundException(`Task with id "${taskId}" not found`);
     }
 
-    const activeExecution = this.executions.find(
-      (e) => e.taskId === taskId && (e.status === 'running' || e.status === 'blocked'),
-    );
-    if (activeExecution) {
-      throw new Error('Task already has an active execution');
+    const activeExecution = this.getActiveExecution(taskId);
+
+    if (activeExecution?.status === 'running') {
+      throw new Error('Task already has a running execution');
     }
 
+    if (activeExecution?.status === 'blocked') {
+      // Resume the paused execution — preserve all existing steps and context
+      activeExecution.status = 'running';
+      this.tasksService.updateTask(taskId, { status: 'in_progress', assignedAgent: agentType });
+      return activeExecution;
+    }
+
+    // No active execution: create a new one
     const execution: Execution = {
       id: uuidv4(),
       taskId,
@@ -125,5 +134,13 @@ export class ExecutionsService {
 
     execution.status = 'cancelled';
     return execution;
+  }
+
+  getActiveExecution(taskId: string): Execution | null {
+    return (
+      this.executions.find(
+        (e) => e.taskId === taskId && (e.status === 'running' || e.status === 'blocked'),
+      ) ?? null
+    );
   }
 }

@@ -99,3 +99,44 @@ GET http://localhost:3000/tasks
 
 ### 12. Ver executions de una task
 GET http://localhost:3000/executions/task/{{TASK_ID}}
+
+###
+
+### 13. Mover task a in_progress (requiere agentType)
+PATCH http://localhost:3000/tasks/{{TASK_ID}}/move
+Content-Type: application/json
+
+{
+  "targetStatus": "in_progress",
+  "agentType": "dev"
+}
+
+###
+
+### 14. Mover task a testing
+PATCH http://localhost:3000/tasks/{{TASK_ID}}/move
+Content-Type: application/json
+
+{
+  "targetStatus": "testing"
+}
+
+###
+
+### 15. Mover task a completed
+PATCH http://localhost:3000/tasks/{{TASK_ID}}/move
+Content-Type: application/json
+
+{
+  "targetStatus": "completed"
+}
+
+###
+
+### 16. Mover task a pending
+PATCH http://localhost:3000/tasks/{{TASK_ID}}/move
+Content-Type: application/json
+
+{
+  "targetStatus": "pending"
+}

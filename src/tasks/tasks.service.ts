@@ -1,13 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { Task } from '../common/interfaces/task.interface';
 import { ProjectsService } from '../projects/projects.service';
+import { ExecutionsService } from '../executions/executions.service';
 
 @Injectable()
 export class TasksService {
   private tasks: Task[] = [];
 
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+    @Inject(forwardRef(() => ExecutionsService))
+    private readonly executionsService: ExecutionsService,
+  ) {}
 
   create(taskData: {
     title: string;
@@ -54,5 +65,55 @@ export class TasksService {
     if (!task) return null;
     Object.assign(task, updates);
     return task;
+  }
+
+  moveTask(
+    taskId: string,
+    targetStatus: Task['status'],
+    agentType?: 'dev' | 'qa' | 'pm',
+  ): Task {
+    const task = this.findById(taskId);
+    if (!task) {
+      throw new NotFoundException(`Task with id "${taskId}" not found`);
+    }
+
+    this.validateTransition(task.status, targetStatus);
+
+    if (targetStatus === 'in_progress' && !agentType) {
+      throw new BadRequestException('agentType is required when moving to in_progress');
+    }
+
+    const activeExecution = this.executionsService.getActiveExecution(taskId);
+
+    if (targetStatus === 'in_progress') {
+      // Global rule: cancel running before moving, but leave blocked — createExecution will resume it
+      if (activeExecution?.status === 'running') {
+        this.executionsService.cancelExecution(activeExecution.id);
+      }
+      // createExecution handles: blocked → resume, none → create new
+      this.executionsService.createExecution(taskId, agentType!);
+      return this.findById(taskId)!;
+    }
+
+    // Moving away from in_progress: cancel any active execution (running or blocked) for consistency
+    if (activeExecution) {
+      this.executionsService.cancelExecution(activeExecution.id);
+    }
+
+    return this.updateTask(taskId, { status: targetStatus })!;
+  }
+
+  private validateTransition(from: Task['status'], to: Task['status']): void {
+    const allowed: Record<Task['status'], Task['status'][]> = {
+      pending: ['in_progress', 'testing', 'completed'],
+      in_progress: ['pending', 'testing', 'completed', 'in_progress'],
+      testing: ['completed', 'in_progress', 'pending'],
+      completed: ['pending', 'in_progress', 'testing'],
+      blocked: ['pending', 'in_progress', 'testing', 'completed'],
+    };
+
+    if (!allowed[from]?.includes(to)) {
+      throw new BadRequestException(`Cannot transition task from "${from}" to "${to}"`);
+    }
   }
 }

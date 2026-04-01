@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { Task } from '../common/interfaces/task.interface';
 
@@ -33,5 +33,13 @@ export class TasksController {
   @Get(':id')
   findById(@Param('id') id: string) {
     return this.tasksService.findById(id);
+  }
+
+  @Patch(':id/move')
+  move(
+    @Param('id') id: string,
+    @Body() body: { targetStatus: Task['status']; agentType?: 'dev' | 'qa' | 'pm' },
+  ) {
+    return this.tasksService.moveTask(id, body.targetStatus, body.agentType);
   }
 }
